@@ -3,10 +3,10 @@
 DEMO_HOME=$(pwd)
 
 # start all containers
-cd "$DEMO_HOME/docker-compose"
 docker-compose up
 
-# (in another terminal tab) start a hosted tools, mapped on our code
+# create Kafka topic and Kafka Connector
+# find containerId with KafkaConnect cluster
 docker ps
 docker exec -it <containerId> bash
   # go to dir with conenctor configs
@@ -18,10 +18,8 @@ docker exec -it <containerId> bash
   # shut down the terminal
   # open in browser http://localhost:3030/kafka-connect-ui/#/cluster/fast-data-dev and make sure the connector has been created
 
-# (in another terminal tab) start data generator
-cd "$DEMO_HOME"
+# start data generator
 java -jar ./data-generator/target/data-generator-1.0-SNAPSHOT.jar --usersNum=100 --eventsPerSecond=3000
 
-# (in another terminal tab) start Spark job
-cd "$DEMO_HOME"
+# start Spark job
 java -jar ./spark-job/target/spark-job-1.0-SNAPSHOT.jar

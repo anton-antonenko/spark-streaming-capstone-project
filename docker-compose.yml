@@ -15,7 +15,7 @@ services:
       - 9581-9585:9581-9585       # JMX Ports
       - 9092:9092                 # Kafka Broker
     volumes:
-      - ../files:/files
+      - ./files:/files
 
   cassandra:
     image: bitnami/cassandra:latest
