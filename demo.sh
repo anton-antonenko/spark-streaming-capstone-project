@@ -19,7 +19,9 @@ docker exec -it <containerId> bash
   # open in browser http://localhost:3030/kafka-connect-ui/#/cluster/fast-data-dev and make sure the connector has been created
 
 # start data generator
+# it's supposed that it's already built. if not, go to the `./data-generator` and run `sbt assembly`
 java -jar ./data-generator/target/data-generator-1.0-SNAPSHOT.jar --usersNum=100 --eventsPerSecond=3000
 
 # start Spark job
+# the same - if it's not built yet, go to the `./spark-job` and run `sbt assembly`
 java -jar ./spark-job/target/spark-job-1.0-SNAPSHOT.jar
