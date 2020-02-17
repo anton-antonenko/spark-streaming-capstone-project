@@ -2,6 +2,7 @@ package com.gridu.aantonenko.streaming
 
 import java.sql.Timestamp
 
+import com.datastax.driver.core.utils.UUIDs
 import org.apache.spark.sql.{Dataset, Row, SaveMode, SparkSession}
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.streaming.OutputMode
@@ -29,6 +30,8 @@ object StreamingJob {
     val spark = SparkSession.builder()
       .appName("BotDetectionStreamingJob")
       .master("local")
+      .config("spark.cassandra.auth.username", "cassandra")
+      .config("spark.cassandra.auth.password", "cassandra")
       .getOrCreate()
 
     spark.sparkContext.setLogLevel("ERROR")
@@ -63,16 +66,23 @@ object StreamingJob {
       .drop("window")
 
 
-    // Write to console
-    clickstreamWithBots
+    val writeToCassandraQuery = clickstreamWithBots
+      .select('ip, 'event_time, 'type, 'url, 'is_bot)
       .writeStream
-      .format("console")
-      .outputMode(OutputMode.Append())
-      .option("truncate", "false")
-      .start()
-      .awaitTermination()
+      .foreachBatch((batchDF: Dataset[Row], _: Long) => {
+        import org.apache.spark.sql.cassandra._
+        val uuid = udf(() => UUIDs.timeBased().toString)
+        val cassandra = batchDF.withColumn("event_id", uuid())
 
-    // TODO: write to cassandra. can be done separately
+        cassandra.show(false)
+
+        cassandra.write
+          .cassandraFormat(table = "clickstream", keyspace = "capstone", cluster = "clickstream")
+          .save()
+      })
+      .start
+
+    writeToCassandraQuery.awaitTermination()
 
 
     // Write results to redis

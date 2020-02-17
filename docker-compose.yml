@@ -3,6 +3,7 @@ version: '2'
 services:
   kafka-cluster:
     image: landoop/fast-data-dev:latest
+    container_name: streaming-capstone-kafka
     environment:
       ADV_HOST: 127.0.0.1         # Change to 192.168.99.100 if using Docker Toolbox
       RUNTESTS: 0                 # Disable Running tests so the cluster starts faster
@@ -19,16 +20,20 @@ services:
 
   cassandra:
     image: bitnami/cassandra:latest
+    container_name: streaming-capstone-cassandra
     environment:
       - CASSANDRA_PASSWORD_SEEDER=yes
       - CASSANDRA_USER=cassandra
       - CASSANDRA_PASSWORD=cassandra
+      - CASSANDRA_CLUSTER_NAME=clickstream
+      - CASSANDRA_NUM_TOKENS=256
     ports:
       - 7000:7000                 # CASSANDRA_TRANSPORT_PORT_NUMBER
       - 9042:9042                 # CASSANDRA_CQL_PORT_NUMBER
 
   redis:
     image: bitnami/redis:latest
+    container_name: streaming-capstone-redis
     environment:
       - ALLOW_EMPTY_PASSWORD=yes
     ports:
