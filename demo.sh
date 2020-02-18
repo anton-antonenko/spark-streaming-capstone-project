@@ -33,4 +33,13 @@ java -jar ./data-generator/target/data-generator-1.0-SNAPSHOT.jar --usersNum=100
 
 # start the Spark job
 # the same - if it's not built yet, go to the `./spark-job` and run `sbt assembly`
-java -jar ./spark-job/target/spark-job-1.0-SNAPSHOT.jar
+cp ./spark-job/target/spark-job-1.0-SNAPSHOT.jar ./files/spark-job
+SPARK_CONTAINER_ID=$(docker ps -aqf "name=streaming-capstone-spark-master")
+docker exec -it "$SPARK_CONTAINER_ID" bash
+  /spark/bin/spark-submit \
+   --class com.gridu.aantonenko.streaming.StreamingJob \
+   --master spark://"$(hostname)":7077 \
+   /spark-job/spark-job-1.0-SNAPSHOT.jar \
+    --kafkaHost=streaming-capstone-kafka \
+    --redisHost=streaming-capstone-redis \
+    --cassandraHost=streaming-capstone-cassandra

@@ -5,22 +5,27 @@ version := "1.0-SNAPSHOT"
 scalaVersion := "2.12.10"
 
 val scoptVersion = "3.7.0"
-val scalatestVersion = "3.0.5"
+val akkaStreamsVersion = "2.6.3"
+val liftJsonVersion = "3.4.1"
 
 libraryDependencies ++= Seq(
   "com.github.scopt" %% "scopt" % scoptVersion,
-  "com.typesafe.akka" %% "akka-stream" % "2.6.3",
-  "net.liftweb" %% "lift-json" % "3.4.1",
-  "org.scalatest" %% "scalatest" % scalatestVersion % Test
+  "com.typesafe.akka" %% "akka-stream" % akkaStreamsVersion,
+  "net.liftweb" %% "lift-json" % liftJsonVersion
 )
 
-// FOLLOWING SETTINGS ARE NEEDED FOR DEPLOYMENT A FAT JAR USING CI SCRIPTS FOR CONCOURSE
+
+// add wartremover checks
+wartremoverErrors in (Compile, compile) ++= Warts.allBut(Wart.StringPlusAny, Wart.Any, Wart.DefaultArguments, Wart.NonUnitStatements)
+
+// add scalastyle check on Compile
+lazy val compileScalastyle = taskKey[Unit]("compileScalastyle")
+scalastyleFailOnError := true
+compileScalastyle := scalastyle.in(Compile).toTask("").value
+(compile in Compile) := ((compile in Compile) dependsOn compileScalastyle).value
+
+// set jar name for assembly
 assemblyJarName in assembly := s"${name.value}-${version.value}.jar"
 
 // remove scala version from artifacts name
 crossPaths := false
-
-// disable publishing default jars
-publishArtifact in (Compile, packageBin) := false
-publishArtifact in (Compile, packageDoc) := false
-publishArtifact in (Compile, packageSrc) := false

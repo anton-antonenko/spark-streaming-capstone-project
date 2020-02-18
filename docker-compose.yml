@@ -4,6 +4,8 @@ services:
   kafka-cluster:
     image: landoop/fast-data-dev:latest
     container_name: streaming-capstone-kafka
+    networks:
+      - common
     environment:
       ADV_HOST: 127.0.0.1         # Change to 192.168.99.100 if using Docker Toolbox
       RUNTESTS: 0                 # Disable Running tests so the cluster starts faster
@@ -21,6 +23,8 @@ services:
   cassandra:
     image: bitnami/cassandra:latest
     container_name: streaming-capstone-cassandra
+    networks:
+      - common
     environment:
       - CASSANDRA_PASSWORD_SEEDER=yes
       - CASSANDRA_USER=cassandra
@@ -34,7 +38,27 @@ services:
   redis:
     image: bitnami/redis:latest
     container_name: streaming-capstone-redis
+    networks:
+      - common
     environment:
       - ALLOW_EMPTY_PASSWORD=yes
     ports:
       - 6379:6379                 # Redis port
+
+  spark-master:
+    image: bde2020/spark-master:2.4.1-hadoop2.7
+    container_name: streaming-capstone-spark-master
+    networks:
+      - common
+    ports:
+      - 8080:8080                  # SPARK_MASTER_WEBUI_PORT
+      - 7077:7077                  # SPARK_MASTER_PORT
+      - 4040:4004                  # SPARK_APP_UI_PORT
+    environment:
+      - ENABLE_INIT_DAEMON=false
+    volumes:
+      - ./files/spark-job:/spark-job
+
+networks:
+  common:
+    driver: bridge

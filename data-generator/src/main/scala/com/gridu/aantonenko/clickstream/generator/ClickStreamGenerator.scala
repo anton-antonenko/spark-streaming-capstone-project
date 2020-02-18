@@ -1,19 +1,19 @@
 package com.gridu.aantonenko.clickstream.generator
 
-import java.nio.file.{FileSystems, Path, Paths}
-import java.nio.file.StandardOpenOption.{CREATE, APPEND, WRITE}
+import java.nio.file.{ FileSystems, Path, Paths }
+import java.nio.file.StandardOpenOption.{ APPEND, CREATE, WRITE }
 import java.time.ZonedDateTime
 import java.util.concurrent.atomic.AtomicLong
 
-import akka.actor.{ActorSystem, Cancellable}
+import akka.actor.ActorSystem
 import akka.NotUsed
 import akka.stream.IOResult
-import akka.stream.scaladsl.{FileIO, Flow, Keep, Sink, Source}
+import akka.stream.scaladsl.{ FileIO, Flow, Keep, Sink, Source }
 import akka.util.ByteString
-import net.liftweb.json.{DefaultFormats, Serialization}
+import net.liftweb.json.{ DefaultFormats, Serialization }
 import scopt.OptionParser
 
-import scala.concurrent.{ExecutionContextExecutor, Future}
+import scala.concurrent.{ ExecutionContextExecutor, Future }
 import scala.concurrent.duration._
 import scala.util.Random
 
@@ -22,12 +22,18 @@ object ClickStreamGenerator {
 
   val defaultOutputFile: Path = FileSystems.getDefault.getPath("").toAbsolutePath.resolve("files/input_data/clickstream.txt")
 
-  case class InputParams(outputFilePath: Path = defaultOutputFile, eventsPerSecond: Int = 1, usersNum: Int = 1)
+  final case class InputParams(outputFilePath: Path = defaultOutputFile, eventsPerSecond: Int = 1, usersNum: Int = 1)
 
-  case class Record(`type`: String = "click", ip: String = "127.0.0.1", event_time: Long = ZonedDateTime.now().toEpochSecond, url: String = "https://blog.griddynamics.com/") {
+  final case class Record(
+    `type`: String = "click",
+    ip: String = "127.0.0.1",
+    event_time: Long = ZonedDateTime.now().toEpochSecond,
+    url: String = "https://blog.griddynamics.com/"
+  ) {
     def toJsonString: String = Serialization.write(this)
   }
 
+  @SuppressWarnings(Array("org.wartremover.warts.Throw"))
   def main(args: Array[String]): Unit = {
     argsParser.parse(args, InputParams()) match {
       case Some(input) =>
@@ -36,7 +42,6 @@ object ClickStreamGenerator {
         throw new Exception("Can't parse input arguments")
     }
   }
-
 
   def randomIps(usersNum: Int): Seq[String] = {
     (1 to usersNum).map(_ => {
@@ -55,11 +60,10 @@ object ClickStreamGenerator {
     implicit val ec: ExecutionContextExecutor = system.dispatcher
 
     val counter = new AtomicLong()
-    def doRegularly(fn: => Unit, period: FiniteDuration): Cancellable = scheduler.scheduleWithFixedDelay(0 seconds, period)(() => fn)
+    def doRegularly(fn: => Unit, period: FiniteDuration): Unit = scheduler.scheduleWithFixedDelay(0 seconds, period)(() => fn)
 
     val ips = randomIps(inputParams.usersNum)
     val source: Source[Record, NotUsed] = Source(Stream.continually(Record(ip = ips(Random.nextInt(ips.size)))))
-
 
     val fileSink: Sink[String, Future[IOResult]] =
       Flow[String]
