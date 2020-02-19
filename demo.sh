@@ -22,10 +22,11 @@ docker exec -it "$CASSANDRA_CONTAINER_ID" cqlsh -u cassandra -p cassandra -e \
   CREATE TABLE capstone.clickstream(ip text, event_time bigint, event_id uuid, type text, url text, is_bot boolean, PRIMARY KEY (ip, event_time, event_id)) WITH CLUSTERING ORDER BY (event_time ASC);"
 
 # start the data generator
-# it's supposed that it's already built. if not, go to the `./data-generator` and run `sbt clean assembly`
+# it's supposed that it's already built. if not, run `./data-generator/build.sh`
 java -jar ./data-generator/target/data-generator-1.0-SNAPSHOT.jar --usersNum=100 --eventsPerSecond=3000
 
-# if the saprk-job is not built yet, go to the `./spark-job` and run `sbt clean assembly`
+# start the spark job
+# it's supposed that it's already built. if not, run `./spark-job/build.sh`
 # build the Spark job image
 docker build --rm=true -t antonantonenko/spark-job ./spark-job
 
