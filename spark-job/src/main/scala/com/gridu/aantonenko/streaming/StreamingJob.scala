@@ -3,11 +3,11 @@ package com.gridu.aantonenko.streaming
 import java.sql.Timestamp
 
 import com.datastax.driver.core.utils.UUIDs
-import org.apache.spark.sql.{Dataset, Row, SaveMode, SparkSession}
+import org.apache.spark.sql.{ Dataset, Row, SaveMode, SparkSession }
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.streaming.OutputMode
-import org.apache.spark.sql.types.{LongType, StringType, StructField, StructType}
-import org.slf4j.{Logger, LoggerFactory}
+import org.apache.spark.sql.types.{ LongType, StringType, StructField, StructType }
+import org.slf4j.{ Logger, LoggerFactory }
 import scopt.OptionParser
 
 object StreamingJob {
