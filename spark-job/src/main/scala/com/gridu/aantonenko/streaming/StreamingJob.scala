@@ -3,13 +3,16 @@ package com.gridu.aantonenko.streaming
 import java.sql.Timestamp
 
 import com.datastax.driver.core.utils.UUIDs
-import org.apache.spark.sql.{ Dataset, Row, SaveMode, SparkSession }
+import org.apache.spark.sql.{Dataset, Row, SaveMode, SparkSession}
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.streaming.OutputMode
-import org.apache.spark.sql.types.{ LongType, StringType, StructField, StructType }
+import org.apache.spark.sql.types.{LongType, StringType, StructField, StructType}
+import org.slf4j.{Logger, LoggerFactory}
 import scopt.OptionParser
 
 object StreamingJob {
+
+  val logger: Logger = LoggerFactory.getLogger(this.getClass.getSimpleName)
 
   final case class JobParams(
     kafkaHost: String = "localhost",
@@ -47,9 +50,12 @@ object StreamingJob {
     val redisHost = jobParams.redisHost
     val cassandraHost = jobParams.cassandraHost
 
+    logger.info(s"kafkaHost = $kafkaHost")
+    logger.info(s"redisHost = $redisHost")
+    logger.info(s"cassandraHost = $cassandraHost")
+
     val spark = SparkSession.builder()
       .appName("BotDetectionStreamingJob")
-      .master("local[*]")
       .config("spark.cassandra.connection.host", cassandraHost)
       .config("spark.cassandra.auth.username", "cassandra")
       .config("spark.cassandra.auth.password", "cassandra")
