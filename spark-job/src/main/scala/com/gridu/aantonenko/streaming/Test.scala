@@ -2,7 +2,6 @@ package com.gridu.aantonenko.streaming
 
 import java.sql.Timestamp
 
-import com.gridu.aantonenko.streaming.StreamingJob.InputRecord
 import org.apache.spark.sql.{ Dataset, SparkSession }
 import org.apache.spark.sql.expressions.Window
 import org.apache.spark.sql.functions.{ lag, max, not, sum, when }
@@ -12,6 +11,7 @@ import org.apache.spark.sql.types.LongType
 // THIS APPROACH DOESN'T WORK WITH STREAMING :(((
 object Test {
 
+  final case class InputRecord(`type`: String, ip: String, event_time: Long, datetime: Timestamp, url: String)
   final case class Bot(bot_ip: String, banned_since: Timestamp, banned_due: Timestamp)
 
   def main(args: Array[String]): Unit = {

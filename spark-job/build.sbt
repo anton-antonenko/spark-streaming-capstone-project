@@ -13,14 +13,16 @@ val sparkVersion = "2.4.1" // cannot use higher version because they need scala 
 val scoptVersion = "3.7.0"
 val sparkRedisVersion = "2.4.0"
 val sparkCassandraVersion = "2.4.2"
+val sparkTestVersion = s"${sparkVersion}_0.12.0"
 
 
 libraryDependencies ++= Seq(
   "com.github.scopt" %% "scopt" % scoptVersion,
-  "org.apache.spark" %% "spark-sql" % sparkVersion % Provided,
+  "org.apache.spark" %% "spark-sql" % sparkVersion /*% Provided*/,
   "org.apache.spark" %% "spark-sql-kafka-0-10" % sparkVersion,
   "com.redislabs" % "spark-redis" % sparkRedisVersion,
-  "com.datastax.spark" %% "spark-cassandra-connector" % sparkCassandraVersion
+  "com.datastax.spark" %% "spark-cassandra-connector" % sparkCassandraVersion,
+  "com.holdenkarau" %% "spark-testing-base" % sparkTestVersion % Test
 )
 
 // add wartremover checks

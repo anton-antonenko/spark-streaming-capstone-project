@@ -3,11 +3,11 @@ package com.gridu.aantonenko.streaming
 import java.sql.Timestamp
 
 import com.datastax.driver.core.utils.UUIDs
-import org.apache.spark.sql.{ Dataset, Row, SaveMode, SparkSession }
+import org.apache.spark.sql.{Dataset, Row, SaveMode, SparkSession}
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.streaming.OutputMode
-import org.apache.spark.sql.types.{ LongType, StringType, StructField, StructType }
-import org.slf4j.{ Logger, LoggerFactory }
+import org.apache.spark.sql.types.{LongType, StringType, StructField, StructType}
+import org.slf4j.{Logger, LoggerFactory}
 import scopt.OptionParser
 
 object StreamingJob {
@@ -21,7 +21,7 @@ object StreamingJob {
     redisTtlMins: Int = 10
   )
 
-  final case class InputRecord(`type`: String, ip: String, event_time: Long, datetime: Timestamp, url: String)
+  final case class InputRecord(event_id: String, `type`: String, ip: String, event_time: Long, datetime: Timestamp, url: String)
 
   @SuppressWarnings(Array("org.wartremover.warts.Throw"))
   def main(args: Array[String]): Unit = {
@@ -54,15 +54,19 @@ object StreamingJob {
     logger.info(s"redisHost = $redisHost")
     logger.info(s"cassandraHost = $cassandraHost")
 
-    val spark = SparkSession.builder()
+    implicit val spark: SparkSession = SparkSession.builder()
       .appName("BotDetectionStreamingJob")
       .config("spark.cassandra.connection.host", cassandraHost)
       .config("spark.cassandra.auth.username", "cassandra")
       .config("spark.cassandra.auth.password", "cassandra")
       .getOrCreate()
 
-    spark.sparkContext.setLogLevel("ERROR")
+    logger.info("Spark session's created")
+
     import spark.implicits._
+    spark.sparkContext.setLogLevel("ERROR")
+
+    val uuid = udf(() => UUIDs.timeBased().toString)
 
     // read clickstream from kafka
     val clickstream = spark
@@ -76,68 +80,76 @@ object StreamingJob {
       .select(from_json($"data.payload", inputSchema).as("payload"))
       .select("payload.*")
       .withColumn("datetime", to_timestamp(from_unixtime('event_time)))
-      .select('type, 'ip, 'url, 'event_time, 'datetime).as[InputRecord]
+      .withColumn("event_id", uuid())
+      .select('event_id, 'type, 'ip, 'url, 'event_time, 'datetime).as[InputRecord]
       .withWatermark("datetime", "10 minutes")
 
-    // detect bots
     val clickstreamWithBots = clickstream
-      .withColumn("combined", struct('type, 'ip, 'url, 'event_time, 'datetime))
+      .withColumn("combined", struct('event_id, 'type, 'ip, 'url, 'event_time, 'datetime))
       .groupBy('ip, window('datetime, "10 seconds", "1 seconds").as("window"))
       .agg(count("*").as("requestNum"), collect_list("combined").as("requests"))
-      .select(explode('requests).as("request"), 'window, 'requestNum)
-      .withColumn("is_bot", when('requestNum >= 20, true).otherwise(false))
-      .select($"request.type", $"request.ip", $"request.url", $"request.event_time", $"request.datetime", 'window, 'is_bot)
-      .drop("window")
+      .select(explode('requests).as("request"), when('requestNum >= 20, true).otherwise(false).as("is_bot"))
+      .select($"request.event_id", $"request.type", $"request.ip", $"request.url", $"request.event_time", $"request.datetime", 'is_bot)
 
-    val writeToCassandraQuery = clickstreamWithBots
-      .select('ip, 'event_time, 'type, 'url, 'is_bot)
-      .writeStream
-      .foreachBatch((batchDF: Dataset[Row], _: Long) => {
-        import org.apache.spark.sql.cassandra._
-        val uuid = udf(() => UUIDs.timeBased().toString)
-        val cassandra = batchDF.withColumn("event_id", uuid())
+    logger.info("Started processing click-stream...")
 
-        cassandra.show(false)
-
-        cassandra.write
-          .cassandraFormat(table = "clickstream", keyspace = "capstone", cluster = "clickstream")
-          .mode(SaveMode.Append)
-          .save()
-      })
-      .start
-
-    writeToCassandraQuery.awaitTermination()
-
-    // Write results to redis
-    val redisTtlMins = jobParams.redisTtlMins
-
-    val writeToRedisQuery = clickstreamWithBots
+    val write = clickstreamWithBots
       .writeStream
       .outputMode(OutputMode.Update())
       .foreachBatch((batchDF: Dataset[Row], _: Long) => {
-        // write bots to Redis
-        val redis = batchDF
-          .filter('is_bot and 'datetime + expr(s"interval $redisTtlMins minutes") > current_timestamp())
-          .select('ip, 'datetime)
-          .groupBy('ip)
-          .agg(max('datetime).as("last_bot_activity"))
-
-        redis.show(false)
-
-        redis.write
-          .format("org.apache.spark.sql.redis")
-          .option("host", redisHost)
-          .option("port", "6379")
-          .option("table", "bots")
-          .option("key.column", "ip")
-          .option("ttl", 60 * redisTtlMins)
-          .mode(SaveMode.Append)
-          .save()
-
+        batchDF.persist()
+        writeToCassandra(batchDF)
+        writeToRedis(redisHost, jobParams.redisTtlMins, batchDF)
+        batchDF.unpersist()
       })
-      .start()
+      .start
 
-    writeToRedisQuery.awaitTermination()
+    write.awaitTermination()
+  }
+
+  private def writeToCassandra(batchDF: Dataset[Row])(implicit spark: SparkSession): Unit = {
+    import org.apache.spark.sql.cassandra._
+    import spark.implicits._
+
+    val cassandra = batchDF
+      .distinct()
+      .select('event_id, 'ip, 'event_time, 'type, 'url, 'is_bot)
+      .groupBy('event_id, 'ip, 'event_time, 'type, 'url)
+      .agg(max('is_bot).as("is_bot"))
+
+    val rowCount = cassandra.count()
+    logger.info(s"$rowCount records to write to Cassandra")
+
+    cassandra.write
+      .cassandraFormat(table = "clickstream", keyspace = "capstone", cluster = "clickstream")
+      .mode(SaveMode.Append)
+      .option("spark.cassandra.output.consistency.level", "ONE")
+      .save()
+  }
+
+  // TODO: events are coming unsorted, so stale events will be put to bots-cache not on the event_time, but on the processing time
+  private def writeToRedis(redisHost: String, redisTtlMins: Int, batchDF: Dataset[Row])(implicit spark: SparkSession): Unit = {
+    import spark.implicits._
+
+    val redis = batchDF
+      .filter('is_bot and 'datetime + expr(s"interval $redisTtlMins minutes") > current_timestamp())
+      .select('ip, 'datetime)
+      .groupBy('ip)
+      .agg(max('datetime).as("last_bot_activity"))
+
+    val rowCount = redis.count()
+    logger.info(s"$rowCount records to write to Redis")
+
+
+    redis.write
+      .format("org.apache.spark.sql.redis")
+      .option("host", redisHost)
+      .option("port", "6379")
+      .option("table", "bots")
+      .option("key.column", "ip")
+      .option("ttl", 60 * redisTtlMins)
+      .mode(SaveMode.Append)
+      .save()
   }
 
   def argsParser: OptionParser[JobParams] =

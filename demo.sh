@@ -1,10 +1,10 @@
 #!/bin/bash
 
 # start all containers (BE CAREFUL - IT NEEDS A LOT OF MEMORY (5-6G))
-docker-compose up
+docker-compose up -d
 
 # to start all containers except the spark cluster use this:
-docker-compose up kafka-cluster cassandra redis
+docker-compose up -d kafka-cluster cassandra redis
 
 # create a Kafka topic and Kafka Connector
 KAFKA_CONTAINER_ID=$(docker ps -aqf "name=streaming-capstone-kafka")
@@ -21,10 +21,6 @@ docker exec -it "$CASSANDRA_CONTAINER_ID" cqlsh -u cassandra -p cassandra -e \
   "CREATE KEYSPACE capstone WITH replication = {'class':'SimpleStrategy', 'replication_factor' : 1};
   CREATE TABLE capstone.clickstream(ip text, event_time bigint, event_id uuid, type text, url text, is_bot boolean, PRIMARY KEY (ip, event_time, event_id)) WITH CLUSTERING ORDER BY (event_time ASC);"
 
-# start the data generator
-# it's supposed that it's already built. if not, run `./data-generator/build.sh`
-java -jar ./data-generator/target/data-generator-1.0-SNAPSHOT.jar --usersNum=100 --eventsPerSecond=3000
-
 # start the spark job
 # it's supposed that it's already built. if not, run `./spark-job/build.sh`
 # build the Spark job image
@@ -33,9 +29,15 @@ docker build --rm=true -t antonantonenko/spark-job ./spark-job
 # to run the job in the Docker spark cluster use this:
 docker run --name spark-job -h spark-job --rm -p 4040:4040/tcp --net=streamming-final-project_common antonantonenko/spark-job
 # to run the job in the Docker local mode use this:
-docker run --name spark-job -h spark-job --rm -p 4040:4040/tcp -e SPARK_MASTER_URL="local[*]" -e SPARK_PARAMS="--driver-memory 2g" --net=streamming-final-project_common antonantonenko/spark-job
+docker run --name spark-job -h spark-job --rm -p 4040:4040/tcp -e SPARK_MASTER_URL="local[*]" \
+  -e SPARK_PARAMS='--driver-memory 2g' \
+  --net=streamming-final-project_common antonantonenko/spark-job
 # to run the job localy on your pc use this:
 spark-submit --class com.gridu.aantonenko.streaming.StreamingJob \
              --master local[*] \
              --driver-memory 2g \
              ./spark-job/target/spark-job-1.0-SNAPSHOT.jar --kafkaHost=localhost --redisHost=localhost --cassandraHost=localhost
+
+# start the data generator
+# it's supposed that it's already built. if not, run `./data-generator/build.sh`
+java -jar ./data-generator/target/data-generator-1.0-SNAPSHOT.jar --usersNum=100 --eventsPerSecond=3000
