@@ -18,7 +18,7 @@ val sparkTestVersion = s"${sparkVersion}_0.12.0"
 
 libraryDependencies ++= Seq(
   "com.github.scopt" %% "scopt" % scoptVersion,
-  "org.apache.spark" %% "spark-sql" % sparkVersion /*% Provided*/,
+  "org.apache.spark" %% "spark-sql" % sparkVersion % Provided,
   "org.apache.spark" %% "spark-sql-kafka-0-10" % sparkVersion,
   "com.redislabs" % "spark-redis" % sparkRedisVersion,
   "com.datastax.spark" %% "spark-cassandra-connector" % sparkCassandraVersion,
