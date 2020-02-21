@@ -26,7 +26,7 @@ libraryDependencies ++= Seq(
 )
 
 // add wartremover checks
-wartremoverErrors in (Compile, compile) ++= Warts.allBut(Wart.StringPlusAny, Wart.DefaultArguments, Wart.NonUnitStatements)
+wartremoverErrors in (Compile, compile) ++= Warts.allBut(Wart.StringPlusAny, Wart.DefaultArguments, Wart.NonUnitStatements, Wart.ImplicitParameter)
 
 // add scalastyle check on Compile
 lazy val compileScalastyle = taskKey[Unit]("compileScalastyle")

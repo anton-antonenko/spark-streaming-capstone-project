@@ -1,8 +1,8 @@
 package com.gridu.aantonenko.streaming.streaming
 
-import com.holdenkarau.spark.testing.{DataFrameSuiteBase, SharedSparkContext, SparkSessionProvider}
+import com.holdenkarau.spark.testing.{ DataFrameSuiteBase, SharedSparkContext, SparkSessionProvider }
 import org.apache.spark.sql.SparkSession
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.{ FlatSpec, Matchers }
 
 class DataFrameSuite extends FlatSpec with Matchers with DataFrameSuiteBase with SharedSparkContext {
 
