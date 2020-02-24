@@ -22,7 +22,8 @@ docker exec -it "$CASSANDRA_CONTAINER_ID" cqlsh -u cassandra -p cassandra -e \
   CREATE TABLE capstone.clickstream(ip text, event_time bigint, event_id uuid, type text, url text, is_bot boolean, PRIMARY KEY (ip, event_time, event_id)) WITH CLUSTERING ORDER BY (event_time ASC);"
 
 # start the spark job
-# it's supposed that it's already built. if not, run `./spark-job/build.sh`
+# build the job
+./spark-job/build.sh
 # build the Spark job image
 docker build --rm=true -t antonantonenko/spark-job ./spark-job
 
@@ -39,5 +40,7 @@ spark-submit --class com.gridu.aantonenko.streaming.StreamingJob \
              ./spark-job/target/spark-job-1.0-SNAPSHOT.jar --kafkaHost=localhost --redisHost=localhost --cassandraHost=localhost
 
 # start the data generator
-# it's supposed that it's already built. if not, run `./data-generator/build.sh`
-java -jar ./data-generator/target/data-generator-1.0-SNAPSHOT.jar --usersNum=100 --eventsPerSecond=3000
+# build the generator
+./data-generator/build.sh
+# run it
+java -jar ./data-generator/target/data-generator-1.0-SNAPSHOT.jar --usersNum=100 --eventsPerSecond=100
