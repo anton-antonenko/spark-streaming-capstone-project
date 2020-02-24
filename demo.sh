@@ -44,3 +44,9 @@ spark-submit --class com.gridu.aantonenko.streaming.StreamingJob \
 ./data-generator/build.sh
 # run it
 java -jar ./data-generator/target/data-generator-1.0-SNAPSHOT.jar --usersNum=100 --eventsPerSecond=100
+
+
+# to check the number of records in Kafka topic run
+docker exec -it "$KAFKA_CONTAINER_ID" kafka-run-class kafka.tools.GetOffsetShell --broker-list localhost:9092 --topic click-stream --time -1 --offsets 1 | awk -F ":" '{sum += $3} END {print sum}'
+# to check the number of records in Cassanrda table run
+docker exec -it "$CASSANDRA_CONTAINER_ID" cqlsh -u cassandra -p cassandra -e "select count(*) from capstone.clickstream;"
