@@ -61,6 +61,12 @@ object StreamingJob {
       .config("spark.cassandra.auth.password", "cassandra")
       .getOrCreate()
 
+    // since this job is gonna be running in local mode,
+    // many partitions will likely degrade the performance due to scheduling overhead.
+    // the number of shuffle partitions is usually 1.5-2x of the original partitions num,
+    // and in this case the original partitions num is 8 (kafka topic has 8 parts.)
+    spark.conf.set("spark.sql.shuffle.partitions", "16")
+
     logger.info("Spark session's created")
 
     import spark.implicits._
