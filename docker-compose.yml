@@ -1,0 +1,91 @@
+version: '2'
+
+services:
+  kafka-cluster:
+    image: landoop/fast-data-dev:latest
+    container_name: streaming-capstone-kafka
+    networks:
+      - common
+    environment:
+      ADV_HOST: 127.0.0.1         # Change to 192.168.99.100 if using Docker Toolbox
+      RUNTESTS: 0                 # Disable Running tests so the cluster starts faster
+      SAMPLEDATA: 0               # Disable creation of default topics
+      FORWARDLOGS: 0              # Disable creation of default connectors
+      BROWSECONFIGS: 1
+      USER: kafka
+      PASSWORD: kafka
+    ports:
+      - 2181:2181                 # Zookeeper
+      - 3030:3030                 # Landoop UI
+      - 8081-8083:8081-8083       # REST Proxy, Schema Registry, Kafka Connect ports
+      - 9581-9585:9581-9585       # JMX Ports
+      - 9092:9092                 # Kafka Broker
+    volumes:
+      - ./files:/files
+
+  cassandra:
+    image: bitnami/cassandra:latest
+    container_name: streaming-capstone-cassandra
+    networks:
+      - common
+    environment:
+      - CASSANDRA_PASSWORD_SEEDER=yes
+      - CASSANDRA_USER=cassandra
+      - CASSANDRA_PASSWORD=cassandra
+      - CASSANDRA_CLUSTER_NAME=clickstream
+      - CASSANDRA_NUM_TOKENS=256
+    ports:
+      - 7000:7000                 # CASSANDRA_TRANSPORT_PORT_NUMBER
+      - 9042:9042                 # CASSANDRA_CQL_PORT_NUMBER
+
+  redis:
+    image: bitnami/redis:latest
+    container_name: streaming-capstone-redis
+    networks:
+      - common
+    environment:
+      - ALLOW_EMPTY_PASSWORD=yes
+    ports:
+      - 6379:6379                 # Redis port
+
+  spark-master:
+    image: bde2020/spark-master:2.4.1-hadoop2.7
+    container_name: streaming-capstone-spark-master
+    hostname: spark-master
+    networks:
+      - common
+    ports:
+      - 8080:8080                  # SPARK_MASTER_WEBUI_PORT
+      - 7077:7077                  # SPARK_MASTER_PORT
+    environment:
+      - ENABLE_INIT_DAEMON=false
+
+  spark-worker-1:
+    image: bde2020/spark-worker:2.4.1-hadoop2.7
+    container_name: streaming-capstone-spark-worker-1
+    hostname: spark-worker-1
+    networks:
+      - common
+    depends_on:
+      - spark-master
+    ports:
+      - 8091:8081
+    environment:
+      - "SPARK_MASTER=spark://spark-master:7077"
+
+  spark-worker-2:
+    image: bde2020/spark-worker:2.4.1-hadoop2.7
+    container_name: streaming-capstone-spark-worker-2
+    hostname: spark-worker-2
+    networks:
+      - common
+    depends_on:
+      - spark-master
+    ports:
+      - 8092:8081
+    environment:
+      - "SPARK_MASTER=spark://spark-master:7077"
+
+networks:
+  common:
+    driver: bridge

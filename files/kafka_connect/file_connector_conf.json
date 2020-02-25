@@ -1,0 +1,14 @@
+{
+  "name": "click-stream-file",
+  "config": {
+    "connector.class": "org.apache.kafka.connect.file.FileStreamSourceConnector",
+    "tasks.max": "1",
+    "batch.size": "10000",
+    "file": "/files/input_data/clickstream.txt",
+    "topic": "click-stream",
+    "key.converter": "org.apache.kafka.connect.json.JsonConverter",
+    "key.converter.schemas.enable": true,
+    "value.converter": "org.apache.kafka.connect.json.JsonConverter",
+    "value.converter.schemas.enable": true
+  }
+}
